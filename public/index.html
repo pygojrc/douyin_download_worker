@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6f8">
+  <title>抖音作品解析</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: #20232a; background: #f5f6f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 64px 0 48px; }
+    header { margin-bottom: 28px; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 38px); letter-spacing: -.04em; }
+    header p, .muted { color: #707782; }
+    .card { background: #fff; border: 1px solid #e7e9ed; border-radius: 16px; padding: 24px; box-shadow: 0 8px 28px #1820380a; }
+    label { display: block; margin-bottom: 9px; font-weight: 650; }
+    .form { display: flex; gap: 10px; }
+    input { flex: 1; min-width: 0; padding: 13px 14px; border: 1px solid #d7dbe2; border-radius: 10px; font: inherit; outline: none; }
+    input:focus { border-color: #5d6bea; box-shadow: 0 0 0 3px #5d6bea20; }
+    button { padding: 12px 20px; border: 0; border-radius: 10px; background: #414fe0; color: white; font: inherit; font-weight: 650; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .notice { margin: 12px 0 0; min-height: 24px; color: #707782; }
+    .error { color: #b42318; }
+    #result { display: none; margin-top: 20px; }
+    .summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: start; }
+    h2 { margin: 0 0 4px; font-size: 22px; overflow-wrap: anywhere; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: #707782; font-size: 14px; }
+    .section-title { margin: 24px 0 10px; font-size: 17px; }
+    .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+    .variant { padding: 14px; border: 1px solid #e7e9ed; border-radius: 12px; }
+    .variant strong { display: block; margin-bottom: 4px; }
+    details { margin-top: 18px; color: #707782; }
+    pre { overflow: auto; max-height: 320px; padding: 14px; border-radius: 10px; background: #f5f6f8; color: #343944; font-size: 12px; }
+    footer { margin-top: 22px; color: #858b95; font-size: 13px; }
+    @media (max-width: 620px) { main { padding-top: 38px; } .card { padding: 18px; } .form { flex-direction: column; } button { width: 100%; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>抖音作品解析</h1>
+      <p>粘贴分享链接，查看作品信息与可用视频规格。</p>
+    </header>
+    <section class="card" aria-label="解析抖音链接">
+      <form id="form">
+        <label for="share-url">抖音分享链接</label>
+        <div class="form">
+          <input id="share-url" name="url" type="url" inputmode="url" autocomplete="url" placeholder="https://www.douyin.com/video/..." required>
+          <button id="submit" type="submit">解析</button>
+        </div>
+      </form>
+      <p id="status" class="notice" role="status" aria-live="polite">演示解析服务有共享请求限额，请勿连续重复提交。</p>
+    </section>
+
+    <section id="result" class="card" aria-live="polite">
+      <div class="summary">
+        <div>
+          <h2 id="title">作品信息</h2>
+          <div class="meta" id="meta"></div>
+        </div>
+      </div>
+      <h3 class="section-title">视频规格</h3>
+      <div id="variants" class="variants"></div>
+      <details>
+        <summary>作品统计与调试数据</summary>
+        <div id="stats" class="meta"></div>
+        <pre id="raw"></pre>
+      </details>
+    </section>
+    <footer>此页面通过 Cloudflare Worker 调用 demo.douyin.wtf；演示服务可用性与请求限额由上游控制。</footer>
+  </main>
+  <script type="module">
+    const form = document.querySelector("#form");
+    const input = document.querySelector("#share-url");
+    const button = document.querySelector("#submit");
+    const status = document.querySelector("#status");
+    const result = document.querySelector("#result");
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      result.style.display = "none";
+      status.classList.remove("error");
+      status.textContent = "正在请求演示解析服务…";
+      button.disabled = true;
+      try {
+        const response = await fetch("/api/parse", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url: input.value.trim() }),
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "解析失败，请稍后重试。");
+        render(body.result);
+        result.style.display = "block";
+        status.textContent = "解析完成。媒体文件地址不会从浏览器直接请求。";
+      } catch (error) {
+        status.classList.add("error");
+        status.textContent = error.message || "网络异常，请稍后重试。";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    function render(item) {
+      document.querySelector("#title").textContent = item.title || "未提供作品标题";
+      const meta = document.querySelector("#meta");
+      meta.replaceChildren();
+      addMeta(meta, "作者", item.author);
+      addMeta(meta, "作品 ID", item.contentId);
+      addMeta(meta, "发布时间", item.createdAt ? new Date(item.createdAt).toLocaleString("zh-CN") : null);
+      addMeta(meta, "时长", item.durationMs == null ? null : `${(item.durationMs / 1000).toFixed(1)} 秒`);
+
+      const variants = document.querySelector("#variants");
+      variants.replaceChildren();
+      if (!item.variants.length) {
+        variants.textContent = "解析结果没有提供视频规格。";
+      } else {
+        for (const v of item.variants) {
+          const card = document.createElement("article");
+          card.className = "variant";
+          const heading = document.createElement("strong");
+          heading.textContent = `${v.width || "?"} × ${v.height || "?"}`;
+          const detail = document.createElement("span");
+          const bits = [v.codec, v.fps ? `${v.fps} fps` : null, v.format, v.sizeBytes == null ? null : `${(v.sizeBytes / 1048576).toFixed(1)} MB`].filter(Boolean);
+          detail.textContent = bits.join(" · ") || "规格信息不完整";
+          card.append(heading, detail);
+          variants.append(card);
+        }
+      }
+      const stats = document.querySelector("#stats");
+      stats.replaceChildren();
+      addMeta(stats, "点赞", item.statistics.likes);
+      addMeta(stats, "评论", item.statistics.comments);
+      addMeta(stats, "分享", item.statistics.shares);
+      addMeta(stats, "收藏", item.statistics.collects);
+      document.querySelector("#raw").textContent = JSON.stringify(item, null, 2);
+    }
+
+    function addMeta(parent, label, value) {
+      if (value === null || value === undefined || value === "") return;
+      const span = document.createElement("span");
+      span.textContent = `${label}：${value}`;
+      parent.append(span);
+    }
+  </script>
+</body>
+</html>
