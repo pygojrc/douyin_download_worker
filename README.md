@@ -25,7 +25,7 @@ pnpm run deploy
 
 - 公共演示站的角色只读，共享限流为每 10 秒 30 次请求；它不是适合高流量生产使用的独立 API。
 - 解析通过 `POST /api/v1/parse?wait=25` 执行同步请求，最多等待约 30 秒。
-- 解析 API 只调用 `demo.douyin.wtf`。媒体代理转发浏览器实际发送的 `User-Agent`、`Accept`、`Accept-Language`、`Referer` 和 `Range` 请求头，不转发 Cookie 或授权头，也不伪造浏览器专用的 `Sec-Fetch-*` / Client Hints。视频和音频均支持直接下载及 Worker 流式代理下载，代理使用短时 HMAC 签名令牌和媒体域名白名单。
+- 解析 API 只调用 `demo.douyin.wtf`。媒体代理转发浏览器实际发送的 `User-Agent`、`Accept`、`Accept-Language` 和 `Range` 请求头；不转发指向解析站的 `Referer`、Cookie 或授权头，也不伪造浏览器专用的 `Sec-Fetch-*` / Client Hints。视频和音频均支持直接下载及 Worker 流式代理下载，代理使用短时 HMAC 签名令牌和媒体域名白名单。
 - 代理下载需要先设置 Worker Secret：`wrangler secret put MEDIA_PROXY_SECRET`。请使用随机高熵值，不要写入仓库。
 - 文件名使用“主题_作者_发布时间.mp4”，缺少发布时间时省略时间段。复制按钮复制清理后的文件名。
 - 播放器仅在用户点击“预览”后加载，不会在解析成功时自动播放；关闭预览时释放媒体资源。

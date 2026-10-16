@@ -244,7 +244,12 @@ async function proxyMedia(request, env, disposition, type) {
   try {
     const upstream = await fetchMedia(mediaUrl, request.headers);
     if (!upstream.ok && upstream.status !== 206) {
-      return json({ error: "上游视频地址已失效，请重新解析。" }, upstream.status === 404 ? 404 : 502);
+      const mediaName = type === "audio" ? "音频" : type === "image" ? "封面" : "视频";
+      const message = upstream.status === 403 ? `上游拒绝了${mediaName}请求（403），可能是来源校验失败。`
+        : [404, 410].includes(upstream.status) ? `上游${mediaName}地址已失效，请重新解析。`
+          : upstream.status === 429 ? "上游媒体服务正在限流，请稍后重试。"
+            : `上游${mediaName}请求失败（HTTP ${upstream.status}）。`;
+      return json({ error: message }, [404, 410].includes(upstream.status) ? upstream.status : 502);
     }
     const contentType = upstream.headers.get("content-type") || "application/octet-stream";
     const baseType = contentType.split(";")[0].trim().toLowerCase();
@@ -276,8 +281,9 @@ async function proxyMedia(request, env, disposition, type) {
 async function fetchMedia(initialUrl, clientHeaders) {
   let current = new URL(initialUrl);
   const headers = new Headers({ accept: "*/*", "accept-encoding": "identity" });
-  // 仅转发浏览器实际发送且适用于媒体请求的头；不转发 Cookie、授权头或伪造 sec-fetch/client hints。
-  for (const name of ["user-agent", "accept", "accept-language", "referer", "range"]) {
+  // 仅转发适用于媒体请求的浏览器头；客户端 Referer 指向解析站，会触发上游防盗链，因此不转发。
+  // Cookie、授权头和浏览器专用的 sec-fetch/client hints 也不转发或伪造。
+  for (const name of ["user-agent", "accept", "accept-language", "range"]) {
     const value = clientHeaders.get(name);
     if (value) headers.set(name, value);
   }
