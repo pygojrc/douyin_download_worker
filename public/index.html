@@ -62,6 +62,7 @@
     h3 { margin: 0; font-size: 17px; }
     .section-heading span { color: var(--muted); font-size: 12px; }
     #variants { display: grid; gap: 10px; }
+    #audio-info { margin-top: 24px; }
     .variant { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 15px; border: 1px solid var(--line); border-radius: 13px; }
     .variant-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .variant-title strong { font-size: 16px; }
@@ -127,6 +128,10 @@
         </section>
         <div class="section-heading"><h3>视频信息</h3><span id="variant-count"></span></div>
         <div id="variants"></div>
+        <section id="audio-info" aria-label="音频信息">
+          <div class="section-heading"><h3>音频信息</h3></div>
+          <div id="audio-card"></div>
+        </section>
       </div>
     </section>
   </main>
@@ -246,10 +251,44 @@
         const empty = document.createElement("div"); empty.className = "empty";
         empty.textContent = "作品信息已解析，但上游没有返回可用的视频流。请稍后重试。";
         variants.append(empty);
+      } else {
+        item.variants.forEach((variant, index) => variants.append(createVariant(variant, item, index)));
+      }
+
+      renderAudio(item.audio);
+    }
+
+    function renderAudio(audio) {
+      const container = document.querySelector("#audio-card");
+      container.replaceChildren();
+      if (!audio?.url) {
+        const empty = document.createElement("div"); empty.className = "empty";
+        empty.textContent = "上游没有提供可下载的音频地址。";
+        container.append(empty);
         return;
       }
 
-      item.variants.forEach((variant, index) => variants.append(createVariant(variant, item, index)));
+      const card = document.createElement("article"); card.className = "variant";
+      const information = document.createElement("div");
+      const heading = document.createElement("div"); heading.className = "variant-title";
+      const title = document.createElement("strong"); title.textContent = audio.title || "作品音频";
+      const format = document.createElement("span"); format.className = "pill"; format.textContent = audio.format || "音频";
+      heading.append(title, format);
+      const detail = document.createElement("div"); detail.className = "variant-detail";
+      const details = [audio.author ? `作者：${audio.author}` : null, audio.durationMs == null ? null : `时长：${(audio.durationMs / 1000).toFixed(1)} 秒`].filter(Boolean);
+      detail.textContent = details.join(" · ") || "音频规格信息不完整";
+      information.append(heading, detail);
+
+      const actions = document.createElement("div"); actions.className = "actions";
+      const direct = document.createElement("a"); direct.className = "button secondary"; direct.textContent = "直接下载";
+      direct.href = audio.url; direct.download = audio.fileName || "douyin-audio.mp3"; direct.rel = "noreferrer";
+      const proxy = document.createElement("button"); proxy.type = "button"; proxy.textContent = "代理下载";
+      proxy.disabled = !audio.proxyToken;
+      proxy.title = audio.proxyToken ? "通过 Cloudflare Worker 转发音频文件" : "此媒体来源暂不支持代理下载";
+      proxy.addEventListener("click", () => submitProxyDownload(audio.proxyToken, "/api/audio-download"));
+      actions.append(direct, proxy);
+      card.append(information, actions);
+      container.append(card);
     }
 
     function createVariant(variant, item, index) {
@@ -277,7 +316,7 @@
       const proxy = document.createElement("button"); proxy.type = "button"; proxy.textContent = "代理下载";
       proxy.disabled = !variant.proxyToken;
       proxy.title = variant.proxyToken ? "通过 Cloudflare Worker 转发视频流" : "此媒体来源暂不支持代理下载";
-      proxy.addEventListener("click", () => submitProxyDownload(variant.proxyToken));
+      proxy.addEventListener("click", () => submitProxyDownload(variant.proxyToken, "/api/download"));
       actions.append(preview, direct, proxy);
       card.append(information, actions);
       return card;
@@ -302,11 +341,11 @@
       previewMessage.textContent = "";
     }
 
-    function submitProxyDownload(token) {
+    function submitProxyDownload(token, endpoint) {
       if (!token) return;
       const form = document.createElement("form");
       // 附件响应在当前页触发浏览器下载，避免新开空白标签。
-      form.method = "POST"; form.action = "/api/download";
+      form.method = "POST"; form.action = endpoint;
       const field = document.createElement("input"); field.type = "hidden"; field.name = "token"; field.value = token;
       form.append(field); document.body.append(form); form.submit(); form.remove();
     }

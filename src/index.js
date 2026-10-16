@@ -5,7 +5,7 @@ const ALLOWED_INPUT_HOSTS = new Set([
 ]);
 const MEDIA_HOST_SUFFIXES = [
   "douyinvod.com", "douyinpic.com", "snssdk.com", "ibytedtos.com", "zjcdn.com", "douyin.com",
-  "byteimg.com", "bytecdn.cn", "bytedance.net",
+  "byteimg.com", "bytecdn.cn", "bytedance.net", "douyinstatic.com",
 ];
 const TOKEN_TTL_MS = 30 * 60 * 1000;
 const PARSE_INTERVAL_MS = 1000;
@@ -24,6 +24,10 @@ export default {
     if (url.pathname === "/api/download") {
       if (request.method !== "POST") return json({ error: "请使用 POST 请求。" }, 405);
       return proxyMedia(request, env, "attachment", "video");
+    }
+    if (url.pathname === "/api/audio-download") {
+      if (request.method !== "POST") return json({ error: "请使用 POST 请求。" }, 405);
+      return proxyMedia(request, env, "attachment", "audio");
     }
     if (url.pathname === "/api/preview" || url.pathname === "/api/cover") {
       if (request.method !== "GET") return json({ error: "请使用 GET 请求。" }, 405);
@@ -139,6 +143,7 @@ async function normalizeResult(data, env) {
   const authorName = firstText(typeof author === "string" ? author : null, author.nickname, author.name);
   const createdAt = normalizeTimestamp(created);
   const fileName = buildFileName(title, authorName, createdAt);
+  const audio = await normalizeAudio(data, raw, fileName, duration, env);
   return {
     title,
     contentId,
@@ -155,7 +160,41 @@ async function normalizeResult(data, env) {
       collects: nullableNumber(stats.collects ?? stats.collect_count ?? raw.statistics?.collect_count),
     },
     variants: await Promise.all(variants.map(variant => normalizeVariant(variant, fileName, env))),
+    audio,
   };
+}
+
+// 抖音原始数据通常把背景音乐地址放在 music.play_url，演示接口也会返回此字段。
+async function normalizeAudio(data, raw, videoFileName, videoDuration, env) {
+  const music = data.music ?? raw.music ?? {};
+  const playUrl = music.play_url;
+  const urls = Array.isArray(playUrl?.url_list) ? playUrl.url_list : [];
+  const url = safeMediaUrl(typeof playUrl === "string" ? playUrl : null)
+    ?? urls.map(safeMediaUrl).find(Boolean)
+    ?? safeMediaUrl(data.media?.audio?.url ?? data.audio?.url ?? raw.video?.audio?.url);
+  if (!url || !isAllowedMediaHost(new URL(url).hostname)) return null;
+
+  const suffix = inferAudioSuffix(url, firstText(music.format, data.media?.audio?.format, data.audio?.format));
+  const fileName = videoFileName.replace(/\.mp4$/i, suffix);
+  const proxyToken = env.MEDIA_PROXY_SECRET
+    ? await createProxyToken(url, fileName, env.MEDIA_PROXY_SECRET) : null;
+  return {
+    url,
+    proxyToken,
+    title: firstText(music.title, data.audio?.title) ?? "作品音频",
+    author: firstText(music.author, music.owner_nickname, data.audio?.author),
+    durationMs: finiteNumber(music.duration) !== null
+      ? Number(music.duration) * (Number(music.duration) < 1000 ? 1000 : 1)
+      : finiteNumber(data.media?.audio?.duration_ms ?? data.audio?.duration_ms ?? videoDuration),
+    format: suffix.slice(1).toUpperCase(),
+    fileName,
+  };
+}
+
+function inferAudioSuffix(url, format) {
+  const match = new URL(url).pathname.match(/\.([a-z0-9]{2,5})$/i);
+  const ext = (match?.[1] ?? format ?? "mp3").toLowerCase();
+  return ["mp3", "m4a", "aac", "ogg", "wav", "flac"].includes(ext) ? `.${ext}` : ".mp3";
 }
 
 async function normalizeVariant(variant, fileName, env) {
@@ -203,15 +242,19 @@ async function proxyMedia(request, env, disposition, type) {
   }
 
   try {
-    const upstream = await fetchMedia(mediaUrl, request.headers.get("range"));
+    const upstream = await fetchMedia(mediaUrl, request.headers);
     if (!upstream.ok && upstream.status !== 206) {
       return json({ error: "上游视频地址已失效，请重新解析。" }, upstream.status === 404 ? 404 : 502);
     }
     const contentType = upstream.headers.get("content-type") || "application/octet-stream";
-    const validType = type === "image" ? contentType.startsWith("image/")
-      : contentType.startsWith("video/") || ["application/octet-stream", "binary/octet-stream"].includes(contentType.split(";")[0].trim());
+    const baseType = contentType.split(";")[0].trim().toLowerCase();
+    const validType = type === "image" ? baseType.startsWith("image/")
+      : type === "audio" ? baseType.startsWith("audio/") || ["application/octet-stream", "binary/octet-stream"].includes(baseType)
+        : baseType.startsWith("video/") || ["application/octet-stream", "binary/octet-stream"].includes(baseType);
     if (!validType) {
-      return json({ error: type === "image" ? "上游封面格式暂不支持。" : "上游返回的内容不是可播放的视频。" }, 502);
+      const error = type === "image" ? "上游封面格式暂不支持。"
+        : type === "audio" ? "上游返回的内容不是可下载的音频。" : "上游返回的内容不是可播放的视频。";
+      return json({ error }, 502);
     }
     const headers = new Headers({
       "content-type": contentType,
@@ -230,10 +273,14 @@ async function proxyMedia(request, env, disposition, type) {
   }
 }
 
-async function fetchMedia(initialUrl, range) {
+async function fetchMedia(initialUrl, clientHeaders) {
   let current = new URL(initialUrl);
   const headers = new Headers({ accept: "*/*", "accept-encoding": "identity" });
-  if (range) headers.set("range", range);
+  // 仅转发浏览器实际发送且适用于媒体请求的头；不转发 Cookie、授权头或伪造 sec-fetch/client hints。
+  for (const name of ["user-agent", "accept", "accept-language", "referer", "range"]) {
+    const value = clientHeaders.get(name);
+    if (value) headers.set(name, value);
+  }
   for (let hop = 0; hop <= 3; hop++) {
     if (!isAllowedMediaHost(current.hostname)) throw new Error("媒体重定向地址不受支持");
     const response = await fetch(current, { headers, redirect: "manual" });
