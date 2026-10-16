@@ -6,20 +6,20 @@ Cloudflare Workers Static Assets + Worker API 的轻量中文单页。解析请�
 
 ```sh
 pnpm install
-pnpm dev
+pnpm run dev
 ```
 
 ## 部署
 
 ```sh
-pnpm deploy
+pnpm run deploy
 ```
 
 `wrangler.jsonc` 将 `workers_dev` 设为 `false`，因此需先在 Cloudflare Worker Builds 中关联 GitHub 仓库，并配置自定义域名后再公开访问。
 
 ## 自动部署
 
-在 Cloudflare Dashboard 的 Workers & Pages 中，从 GitHub 仓库创建 Worker，根目录设为仓库根目录，构建命令留空，部署命令设为 `pnpm deploy`。之后推送到默认分支即可触发部署。
+在 Cloudflare Dashboard 的 Workers & Pages 中，从 GitHub 仓库创建 Worker，根目录设为仓库根目录，构建命令留空，部署命令设为 `pnpm run deploy`。之后推送到默认分支即可触发部署。
 
 ## 上游约束
 
