@@ -3,107 +3,224 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f6f8">
+  <meta name="theme-color" content="#f7f7f8">
   <title>抖音作品解析</title>
   <style>
-    :root { color-scheme: light; font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: #20232a; background: #f5f6f8; }
+    :root {
+      color-scheme: light;
+      font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #17181b;
+      background: #f7f7f8;
+      --muted: #777b84;
+      --line: #e9e9ec;
+      --accent: #ed3155;
+      --soft: #fff0f3;
+    }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; }
-    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 64px 0 48px; }
-    header { margin-bottom: 28px; }
-    h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 38px); letter-spacing: -.04em; }
-    header p, .muted { color: #707782; }
-    .card { background: #fff; border: 1px solid #e7e9ed; border-radius: 16px; padding: 24px; box-shadow: 0 8px 28px #1820380a; }
-    label { display: block; margin-bottom: 9px; font-weight: 650; }
-    .form { display: flex; gap: 10px; }
-    input { flex: 1; min-width: 0; padding: 13px 14px; border: 1px solid #d7dbe2; border-radius: 10px; font: inherit; outline: none; }
-    input:focus { border-color: #5d6bea; box-shadow: 0 0 0 3px #5d6bea20; }
-    button { padding: 12px 20px; border: 0; border-radius: 10px; background: #414fe0; color: white; font: inherit; font-weight: 650; cursor: pointer; }
+    button, input { font: inherit; }
+    main { width: min(980px, calc(100% - 32px)); margin: auto; padding: 48px 0 36px; }
+    .brand { display: flex; gap: 12px; align-items: center; margin-bottom: 28px; }
+    .brand-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; color: white; background: #191a1f; font-size: 22px; font-weight: 800; box-shadow: 3px 3px 0 #27d4cf, -3px -2px 0 #ff3c60; }
+    h1 { margin: 0; font-size: 23px; line-height: 1.2; letter-spacing: -.04em; }
+    .brand p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .panel { border: 1px solid var(--line); border-radius: 18px; background: white; box-shadow: 0 12px 36px #20203008; }
+    .search { padding: 22px; }
+    label { display: block; margin-bottom: 9px; font-size: 14px; font-weight: 700; }
+    .search-row { display: flex; gap: 10px; }
+    input { width: 100%; min-width: 0; height: 50px; padding: 0 15px; border: 1px solid #dadbe0; border-radius: 12px; outline: 0; background: #fff; }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #ed31551c; }
+    button, .button { display: inline-flex; justify-content: center; align-items: center; gap: 7px; min-height: 42px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--accent); color: white; font-weight: 700; text-decoration: none; cursor: pointer; white-space: nowrap; }
+    button:hover, .button:hover { filter: brightness(.96); }
     button:disabled { opacity: .55; cursor: wait; }
-    .notice { margin: 12px 0 0; min-height: 24px; color: #707782; }
-    .error { color: #b42318; }
-    #result { display: none; margin-top: 20px; }
-    .summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: start; }
-    h2 { margin: 0 0 4px; font-size: 22px; overflow-wrap: anywhere; }
-    .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: #707782; font-size: 14px; }
-    .section-title { margin: 24px 0 10px; font-size: 17px; }
-    .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
-    .variant { padding: 14px; border: 1px solid #e7e9ed; border-radius: 12px; }
-    .variant strong { display: block; margin-bottom: 4px; }
-    details { margin-top: 18px; color: #707782; }
-    pre { overflow: auto; max-height: 320px; padding: 14px; border-radius: 10px; background: #f5f6f8; color: #343944; font-size: 12px; }
-    footer { margin-top: 22px; color: #858b95; font-size: 13px; }
-    @media (max-width: 620px) { main { padding-top: 38px; } .card { padding: 18px; } .form { flex-direction: column; } button { width: 100%; } }
+    .button.secondary, button.secondary { color: #34363d; background: #f0f1f3; }
+    .button.disabled { opacity: .45; pointer-events: none; }
+    .hint, #status { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+    #status:empty { display: none; }
+    #status.error { color: #b42318; }
+    #status.success { color: #16814f; }
+    #result { display: none; margin-top: 18px; overflow: hidden; }
+    .result-head { padding: 22px 24px 20px; border-bottom: 1px solid var(--line); }
+    .success-line { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-bottom: 13px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 99px; color: #147c4b; background: #e8f7ef; font-size: 12px; font-weight: 750; }
+    .source-link { color: #737782; font-size: 12px; overflow-wrap: anywhere; }
+    h2 { margin: 0; max-width: 850px; font-size: clamp(20px, 3vw, 26px); line-height: 1.45; letter-spacing: -.025em; overflow-wrap: anywhere; }
+    #cover { display: block; width: min(100%, 560px); max-height: 315px; margin-top: 18px; border-radius: 12px; object-fit: cover; background: #f0f1f3; }
+    #cover[hidden] { display: none; }
+    .meta { display: flex; flex-wrap: wrap; gap: 7px 18px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+    .meta span { overflow-wrap: anywhere; }
+    .filename-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+    .filename-row code { max-width: 100%; overflow-wrap: anywhere; padding: 5px 8px; border-radius: 7px; background: #f3f3f5; font-size: 12px; }
+    .filename-row button { min-height: 32px; padding: 0 11px; font-size: 12px; }
+    #copy-status { color: #16814f; font-size: 12px; }
+    .content { padding: 20px 24px 24px; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 24px; }
+    .stat { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fcfcfd; }
+    .stat span { display: block; color: var(--muted); font-size: 12px; }
+    .stat strong { display: block; margin-top: 2px; font-size: 18px; font-variant-numeric: tabular-nums; }
+    .section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 0 0 11px; }
+    h3 { margin: 0; font-size: 17px; }
+    .section-heading span { color: var(--muted); font-size: 12px; }
+    #variants { display: grid; gap: 10px; }
+    .variant { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 15px; border: 1px solid var(--line); border-radius: 13px; }
+    .variant-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .variant-title strong { font-size: 16px; }
+    .pill { padding: 2px 7px; border-radius: 6px; color: #5d6069; background: #f0f1f3; font-size: 11px; }
+    .variant-detail { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .actions { display: flex; gap: 8px; }
+    .actions button, .actions .button { min-height: 38px; padding: 0 12px; font-size: 13px; }
+    #preview-panel { margin: 0 0 22px; padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: #fafafb; }
+    #preview-panel[hidden] { display: none; }
+    .preview-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+    #preview-title { font-weight: 700; }
+    #preview-message { color: var(--muted); font-size: 12px; }
+    #video-player { display: block; width: min(100%, 720px); max-height: 70vh; margin: auto; border-radius: 10px; background: #101114; }
+    .empty { padding: 18px; border: 1px dashed #d7d9de; border-radius: 12px; color: var(--muted); text-align: center; }
+    footer { padding: 16px 4px; color: #858993; font-size: 12px; }
+    @media (max-width: 620px) {
+      main { width: min(100% - 22px, 980px); padding-top: 25px; }
+      .search { padding: 17px; }
+      .search-row { flex-direction: column; }
+      .search-row button { width: 100%; }
+      .result-head { padding: 19px 17px 17px; }
+      .content { padding: 17px; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .variant { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+      .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .actions button, .actions .button { padding: 0 7px; font-size: 12px; }
+    }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1>抖音作品解析</h1>
-      <p>粘贴分享链接，查看作品信息与可用视频规格。</p>
+    <header class="brand">
+      <div class="brand-mark" aria-hidden="true">音</div>
+      <div><h1>抖音作品解析</h1><p>查看作品资料、视频规格，并按需预览或下载</p></div>
     </header>
-    <section class="card" aria-label="解析抖音链接">
+
+    <section class="panel search" aria-label="解析抖音链接">
       <form id="form">
-        <label for="share-url">抖音分享链接</label>
-        <div class="form">
-          <input id="share-url" name="url" type="url" inputmode="url" autocomplete="url" placeholder="https://www.douyin.com/video/..." required>
-          <button id="submit" type="submit">解析</button>
+        <label for="share-url">粘贴抖音链接、分享文案或作品 ID</label>
+        <div class="search-row">
+          <input id="share-url" name="url" type="text" inputmode="url" autocomplete="url" placeholder="抖音链接或作品 ID" required>
+          <button id="submit" type="submit">解析作品</button>
         </div>
       </form>
-      <p id="status" class="notice" role="status" aria-live="polite">演示解析服务有共享请求限额，请勿连续重复提交。</p>
+      <p class="hint">支持作品链接、分享文案和作品 ID。解析成功后才会显示作品信息。</p>
+      <p id="status" role="status" aria-live="polite"></p>
     </section>
 
-    <section id="result" class="card" aria-live="polite">
-      <div class="summary">
-        <div>
-          <h2 id="title">作品信息</h2>
-          <div class="meta" id="meta"></div>
-        </div>
+    <section id="result" class="panel" aria-live="polite">
+      <div class="result-head">
+        <div class="success-line"><span class="badge">✓ 解析成功</span><span id="source" class="source-link"></span></div>
+        <h2 id="title">作品信息</h2>
+        <img id="cover" alt="作品封面" hidden>
+        <div class="meta" id="meta"></div>
+        <div class="filename-row"><code id="file-name"></code><button id="copy-file-name" class="secondary" type="button">复制文件名</button><button id="share-item" class="secondary" type="button">分享</button><span id="copy-status" role="status" aria-live="polite"></span></div>
       </div>
-      <h3 class="section-title">视频规格</h3>
-      <div id="variants" class="variants"></div>
-      <details>
-        <summary>作品统计与调试数据</summary>
-        <div id="stats" class="meta"></div>
-        <pre id="raw"></pre>
-      </details>
+      <div class="content">
+        <div id="stats" class="stats"></div>
+        <section id="preview-panel" hidden aria-label="视频预览">
+          <div class="preview-head"><span id="preview-title">视频预览</span><button id="close-preview" class="secondary" type="button">关闭</button></div>
+          <video id="video-player" controls preload="none" playsinline></video>
+          <div id="preview-message" role="status" aria-live="polite"></div>
+        </section>
+        <div class="section-heading"><h3>视频信息</h3><span id="variant-count"></span></div>
+        <div id="variants"></div>
+      </div>
     </section>
-    <footer>此页面通过 Cloudflare Worker 调用 demo.douyin.wtf；演示服务可用性与请求限额由上游控制。</footer>
   </main>
+
   <script type="module">
     const form = document.querySelector("#form");
     const input = document.querySelector("#share-url");
     const button = document.querySelector("#submit");
     const status = document.querySelector("#status");
     const result = document.querySelector("#result");
+    const previewPanel = document.querySelector("#preview-panel");
+    const player = document.querySelector("#video-player");
+    const previewMessage = document.querySelector("#preview-message");
 
     form.addEventListener("submit", async event => {
       event.preventDefault();
+      status.className = "";
       result.style.display = "none";
-      status.classList.remove("error");
-      status.textContent = "正在请求演示解析服务…";
       button.disabled = true;
+      status.textContent = "正在识别链接并请求解析…";
       try {
+        const url = normalizeInput(input.value);
         const response = await fetch("/api/parse", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ url: input.value.trim() }),
+          body: JSON.stringify({ url }),
         });
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || "解析失败，请稍后重试。");
-        render(body.result);
+        render(body.result, url);
         result.style.display = "block";
-        status.textContent = "解析完成。媒体文件地址不会从浏览器直接请求。";
+        status.className = "success";
+        status.textContent = "已成功识别该作品链接。选择预览或下载后才会访问视频文件。";
       } catch (error) {
-        status.classList.add("error");
+        status.className = "error";
         status.textContent = error.message || "网络异常，请稍后重试。";
       } finally {
         button.disabled = false;
       }
     });
 
-    function render(item) {
+    document.querySelector("#close-preview").addEventListener("click", closePreview);
+    player.addEventListener("error", () => { previewMessage.textContent = "视频无法播放，链接可能已过期；请重新解析后重试。"; });
+    document.querySelector("#copy-file-name").addEventListener("click", async () => {
+      const name = document.querySelector("#file-name").textContent;
+      try {
+        await copyText(name);
+        document.querySelector("#copy-status").textContent = "已复制";
+      } catch {
+        document.querySelector("#copy-status").textContent = "复制失败，请手动选择文件名";
+      }
+    });
+    document.querySelector("#share-item").addEventListener("click", async () => {
+      const contentId = document.querySelector("#share-item").dataset.contentId;
+      if (!contentId) return;
+      const shareUrl = new URL("/", location.origin);
+      shareUrl.searchParams.set("id", contentId);
+      try {
+        await copyText(shareUrl.href);
+        document.querySelector("#copy-status").textContent = "解析分享链接已复制";
+      } catch {
+        document.querySelector("#copy-status").textContent = "复制失败，请手动复制地址栏链接";
+      }
+    });
+
+    function normalizeInput(text) {
+      const inputText = text.trim();
+      if (/^\d{10,25}$/.test(inputText)) return `https://www.douyin.com/video/${inputText}`;
+      // 分享文案中只提取抖音域名的 HTTPS 链接，避免误把其他链接发给解析服务。
+      const match = text.match(/https?:\/\/[^\s<>"']+/i);
+      if (!match) throw new Error("没有找到抖音链接，请粘贴作品链接或分享文案。");
+      const candidate = match[0].replace(/[),.;!?，。；！）》】]+$/u, "");
+      let parsed;
+      try { parsed = new URL(candidate); } catch { throw new Error("链接格式无效，请检查后重试。"); }
+      const host = parsed.hostname.toLowerCase();
+      if (parsed.protocol !== "https:" || !["douyin.com", "www.douyin.com", "v.douyin.com", "iesdouyin.com", "www.iesdouyin.com"].includes(host)) {
+        throw new Error("目前只支持 HTTPS 抖音作品链接。");
+      }
+      return parsed.href;
+    }
+
+    function render(item, sourceUrl) {
       document.querySelector("#title").textContent = item.title || "未提供作品标题";
+      const cover = document.querySelector("#cover");
+      cover.hidden = !item.coverUrl;
+      cover.removeAttribute("src");
+      if (item.coverUrl) cover.src = item.coverUrl;
+      document.querySelector("#file-name").textContent = item.fileName || "douyin-video.mp4";
+      document.querySelector("#copy-status").textContent = "";
+      const share = document.querySelector("#share-item");
+      share.dataset.contentId = item.contentId || "";
+      share.disabled = !item.contentId;
+      closePreview();
+      document.querySelector("#source").textContent = `作品链接：${sourceUrl}`;
       const meta = document.querySelector("#meta");
       meta.replaceChildren();
       addMeta(meta, "作者", item.author);
@@ -111,37 +228,111 @@
       addMeta(meta, "发布时间", item.createdAt ? new Date(item.createdAt).toLocaleString("zh-CN") : null);
       addMeta(meta, "时长", item.durationMs == null ? null : `${(item.durationMs / 1000).toFixed(1)} 秒`);
 
+      const statLabels = [["点赞", item.statistics.likes], ["评论", item.statistics.comments], ["分享", item.statistics.shares], ["收藏", item.statistics.collects]];
+      const stats = document.querySelector("#stats");
+      stats.replaceChildren(...statLabels.map(([label, value]) => {
+        const card = document.createElement("div");
+        card.className = "stat";
+        const name = document.createElement("span"); name.textContent = label;
+        const count = document.createElement("strong"); count.textContent = value == null ? "—" : Number(value).toLocaleString("zh-CN");
+        card.append(name, count);
+        return card;
+      }));
+
       const variants = document.querySelector("#variants");
       variants.replaceChildren();
+      document.querySelector("#variant-count").textContent = item.variants.length ? `${item.variants.length} 个可用规格` : "上游未提供视频流";
       if (!item.variants.length) {
-        variants.textContent = "解析结果没有提供视频规格。";
-      } else {
-        for (const v of item.variants) {
-          const card = document.createElement("article");
-          card.className = "variant";
-          const heading = document.createElement("strong");
-          heading.textContent = `${v.width || "?"} × ${v.height || "?"}`;
-          const detail = document.createElement("span");
-          const bits = [v.codec, v.fps ? `${v.fps} fps` : null, v.format, v.sizeBytes == null ? null : `${(v.sizeBytes / 1048576).toFixed(1)} MB`].filter(Boolean);
-          detail.textContent = bits.join(" · ") || "规格信息不完整";
-          card.append(heading, detail);
-          variants.append(card);
-        }
+        const empty = document.createElement("div"); empty.className = "empty";
+        empty.textContent = "作品信息已解析，但上游没有返回可用的视频流。请稍后重试。";
+        variants.append(empty);
+        return;
       }
-      const stats = document.querySelector("#stats");
-      stats.replaceChildren();
-      addMeta(stats, "点赞", item.statistics.likes);
-      addMeta(stats, "评论", item.statistics.comments);
-      addMeta(stats, "分享", item.statistics.shares);
-      addMeta(stats, "收藏", item.statistics.collects);
-      document.querySelector("#raw").textContent = JSON.stringify(item, null, 2);
+
+      item.variants.forEach((variant, index) => variants.append(createVariant(variant, item, index)));
+    }
+
+    function createVariant(variant, item, index) {
+      const card = document.createElement("article"); card.className = "variant";
+      const information = document.createElement("div");
+      const heading = document.createElement("div"); heading.className = "variant-title";
+      const resolution = document.createElement("strong");
+      resolution.textContent = `${variant.width || "?"} × ${variant.height || "?"}`;
+      heading.append(resolution);
+      if (variant.format) { const format = document.createElement("span"); format.className = "pill"; format.textContent = variant.format.toUpperCase(); heading.append(format); }
+      if (variant.watermark) { const mark = document.createElement("span"); mark.className = "pill"; mark.textContent = "含水印"; heading.append(mark); }
+      const detail = document.createElement("div"); detail.className = "variant-detail";
+      const details = [variant.codec, variant.fps ? `${variant.fps} fps` : null, variant.bitrate ? `${Math.round(variant.bitrate / 1000)} kbps` : null, variant.sizeBytes == null ? null : `${(variant.sizeBytes / 1048576).toFixed(1)} MB`].filter(Boolean);
+      detail.textContent = details.join(" · ") || "规格信息不完整";
+      information.append(heading, detail);
+
+      const actions = document.createElement("div"); actions.className = "actions";
+      const preview = document.createElement("button"); preview.type = "button"; preview.className = "secondary"; preview.textContent = "预览";
+      preview.disabled = !variant.previewUrl;
+      preview.addEventListener("click", () => openPreview(variant, resolution.textContent));
+      const direct = document.createElement("a"); direct.className = "button secondary"; direct.textContent = "直接下载";
+      if (variant.url) {
+        direct.href = variant.url; direct.download = item.fileName; direct.rel = "noreferrer";
+      } else disableLink(direct);
+      const proxy = document.createElement("button"); proxy.type = "button"; proxy.textContent = "代理下载";
+      proxy.disabled = !variant.proxyToken;
+      proxy.title = variant.proxyToken ? "通过 Cloudflare Worker 转发视频流" : "此媒体来源暂不支持代理下载";
+      proxy.addEventListener("click", () => submitProxyDownload(variant.proxyToken));
+      actions.append(preview, direct, proxy);
+      card.append(information, actions);
+      return card;
+    }
+
+    function openPreview(variant, resolution) {
+      if (!variant.previewUrl) return;
+      player.pause(); player.removeAttribute("src"); player.load();
+      player.src = variant.previewUrl;
+      previewPanel.hidden = false;
+      document.querySelector("#preview-title").textContent = `视频预览 · ${resolution}`;
+      previewMessage.textContent = "正在加载所选规格…";
+      player.load();
+      previewPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      // 预览只加载到播放器，保持暂停，用户可自行点击播放。
+      previewMessage.textContent = "视频已就绪，点击播放器开始播放。";
+    }
+
+    function closePreview() {
+      player.pause(); player.removeAttribute("src"); player.load();
+      previewPanel.hidden = true;
+      previewMessage.textContent = "";
+    }
+
+    function submitProxyDownload(token) {
+      if (!token) return;
+      const form = document.createElement("form");
+      // 附件响应在当前页触发浏览器下载，避免新开空白标签。
+      form.method = "POST"; form.action = "/api/download";
+      const field = document.createElement("input"); field.type = "hidden"; field.name = "token"; field.value = token;
+      form.append(field); document.body.append(form); form.submit(); form.remove();
+    }
+
+    function disableLink(link) {
+      link.classList.add("disabled"); link.setAttribute("aria-disabled", "true"); link.href = "#";
+    }
+
+    async function copyText(value) {
+      if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(value);
+      const field = document.createElement("textarea"); field.value = value; field.style.position = "fixed"; field.style.opacity = "0";
+      document.body.append(field); field.select();
+      const copied = document.execCommand("copy"); field.remove();
+      if (!copied) throw new Error("Clipboard unavailable");
     }
 
     function addMeta(parent, label, value) {
       if (value === null || value === undefined || value === "") return;
-      const span = document.createElement("span");
-      span.textContent = `${label}：${value}`;
-      parent.append(span);
+      const span = document.createElement("span"); span.textContent = `${label}：${value}`; parent.append(span);
+    }
+
+    // 分享链接携带作品 ID，打开后自动重新解析。
+    const sharedId = new URL(location.href).searchParams.get("id");
+    if (sharedId && /^\d{10,25}$/.test(sharedId)) {
+      input.value = sharedId;
+      form.requestSubmit();
     }
   </script>
 </body>

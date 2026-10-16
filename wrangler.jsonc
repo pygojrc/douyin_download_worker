@@ -4,6 +4,17 @@
   "main": "src/index.js",
   "compatibility_date": "2026-10-16",
   "workers_dev": false,
+  "durable_objects": {
+    "bindings": [
+      { "name": "PARSE_LIMITER", "class_name": "ParseRateLimiter" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["ParseRateLimiter"] }
+  ],
+  "routes": [
+    { "pattern": "dy.pygojrc.cyou", "custom_domain": true }
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
